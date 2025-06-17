@@ -1,6 +1,6 @@
-import os
+import os # type: ignore
 from dotenv import load_dotenv # type: ignore
-from telethon import TelegramClient, events # type: ignore
+from telethon import TelegramClient, events # type: ignore 
 from telethon.sessions import StringSession # type: ignore
 import openai # type: ignore
 
@@ -51,8 +51,35 @@ If system is down / bugged:
 The matrix glitched. Give us 30–60 minutes. Devs are on it.
 """
 
-@client.on(events.NewMessage(incoming=True))
+is_active = True
+
+@client.on(events.NewMessage())
+async def toggle_active(event):
+    global is_active
+    me = await client.get_me()
+
+    if event.is_private and event.sender_id == event.chat_id == me.id:
+        text = event.raw_text.lower()
+        if text == "stop":
+            is_active = False
+            await event.reply("🤖 Assistant stopped. Send /start to activate.")
+            return
+        elif text == "start":
+            is_active = True
+            await event.reply("🤖 Assistant started. Ready to help.")
+            return
+
+@client.on(events.NewMessage())
 async def on_new_message(event):
+    global is_active
+    me = await client.get_me()
+
+    if not is_active:
+        return
+
+    if event.is_private and event.sender_id == event.chat_id == me.id:
+        return
+
     sender = await event.get_sender()
     name = sender.first_name or "User"
     message = event.raw_text
@@ -75,6 +102,7 @@ async def on_new_message(event):
 
     await event.reply(reply)
     print(f"🤖 Reply: {reply}")
+
 
 async def main():
     print("🤖 Connecting to Telegram...")
