@@ -62,11 +62,11 @@ async def toggle_active(event):
         text = event.raw_text.lower()
         if text == "stop":
             is_active = False
-            await event.reply("🤖 Assistant stopped. Send /start to activate.")
+            await event.reply("🤖 Assistant stopped. Send start to activate.")
             return
         elif text == "start":
             is_active = True
-            await event.reply("🤖 Assistant started. Ready to help.")
+            await event.reply("🤖 Assistant started. Ready to help. Send stop to deactivate")
             return
 
 @client.on(events.NewMessage())
