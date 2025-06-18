@@ -1,8 +1,9 @@
-import os # type: ignore
-from dotenv import load_dotenv # type: ignore
-from telethon import TelegramClient, events # type: ignore 
-from telethon.sessions import StringSession # type: ignore
-import openai # type: ignore
+import os
+from dotenv import load_dotenv 
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession 
+from telethon.tl.types import Message
+import openai
 
 load_dotenv()
 
@@ -52,32 +53,48 @@ The matrix glitched. Give us 30–60 minutes. Devs are on it.
 """
 
 is_active = True
+my_id = None
+
+async def build_context(event, limit=4):
+    chat_id = event.chat_id
+    messages = await client.get_messages(chat_id, limit=limit)
+    context = []
+
+    for msg in reversed(messages):
+        if not isinstance(msg, Message):
+            continue
+        if msg.id == event.id:
+            continue
+        text = msg.text or msg.message
+        if text:
+            role = "user" if not msg.out else "assistant"
+            context.append({"role": role, "content": text})
+
+    return context
 
 @client.on(events.NewMessage())
 async def toggle_active(event):
-    global is_active
-    me = await client.get_me()
+    global is_active, my_id
 
-    if event.is_private and event.sender_id == event.chat_id == me.id:
-        text = event.raw_text.lower()
-        if text == "stop":
+    if my_id is None:
+        me = await client.get_me()
+        my_id = me.id
+
+    if event.is_private and event.sender_id == event.chat_id == my_id:
+        text = event.raw_text.strip().lower()
+        if text in ["/stop", "stop"]:
             is_active = False
-            await event.reply("🤖 Assistant stopped. Send start to activate.")
-            return
-        elif text == "start":
+            await event.reply("🤖 Assistant stopped. Send /start to activate.")
+            print("🛑 Assistant deactivated")
+        elif text in ["/start", "start"]:
             is_active = True
-            await event.reply("🤖 Assistant started. Ready to help. Send stop to deactivate")
-            return
+            await event.reply("🤖 Assistant started. Ready to help. Send /stop to deactivate.")
+            print("✅ Assistant activated")
 
-@client.on(events.NewMessage())
+@client.on(events.NewMessage(incoming=True))
 async def on_new_message(event):
     global is_active
-    me = await client.get_me()
-
     if not is_active:
-        return
-
-    if event.is_private and event.sender_id == event.chat_id == me.id:
         return
 
     sender = await event.get_sender()
@@ -87,12 +104,14 @@ async def on_new_message(event):
     print(f"📩 {name}: {message}")
 
     try:
+        context = await build_context(event, limit=4)
+        full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + context + [
+            {"role": "user", "content": message}
+        ]
+
         response = await openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": message}
-            ],
+            messages=full_messages,
             max_tokens=200,
         )
         reply = response.choices[0].message.content.strip()
@@ -102,7 +121,6 @@ async def on_new_message(event):
 
     await event.reply(reply)
     print(f"🤖 Reply: {reply}")
-
 
 async def main():
     print("🤖 Connecting to Telegram...")

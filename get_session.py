@@ -1,8 +1,8 @@
 import os
-from dotenv import load_dotenv # type: ignore
-from telethon.sync import TelegramClient # type: ignore
-from telethon.sessions import StringSession # type: ignore
-from telethon.errors import SessionPasswordNeededError # type: ignore
+from dotenv import load_dotenv 
+from telethon.sync import TelegramClient 
+from telethon.sessions import StringSession 
+from telethon.errors import SessionPasswordNeededError 
 
 load_dotenv()
 
