@@ -110,7 +110,7 @@ async def on_new_message(event):
         ]
 
         response = await openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1-mini",
             messages=full_messages,
             max_tokens=200,
         )
